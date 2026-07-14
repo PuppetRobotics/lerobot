@@ -1277,9 +1277,9 @@ class PI05Policy(PreTrainedPolicy):
         original_action_dim = self.config.output_features[ACTION].shape[0]
         losses = losses[:, :, :original_action_dim]
 
-        loss_dict = {
-            "loss_per_dim": losses.mean(dim=[0, 1]).detach().cpu().numpy().tolist(),
-        }
+        per_dim_losses = losses.mean(dim=(0, 1)).detach().cpu()
+        loss_dict = {f"loss_per_dim_{i}": loss_value.item() for i, loss_value in enumerate(per_dim_losses)}
+        loss_dict["loss_per_dim_avg"] = per_dim_losses.mean().item()
 
         if reduction == "none":
             # Return per-sample losses (B,) by averaging over time and action dims
