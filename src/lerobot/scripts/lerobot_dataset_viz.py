@@ -89,6 +89,8 @@ from lerobot.datasets import LeRobotDataset
 from lerobot.utils.constants import ACTION, DONE, OBS_STATE, REWARD, SUCCESS
 from lerobot.utils.utils import init_logging
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_FOXGLOVE_PORT = 8765
 DEFAULT_RERUN_PORT = 9090
 
@@ -299,7 +301,7 @@ def visualize_dataset(
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("Ctrl-C received. Exiting.")
+            logger.info("Ctrl-C received. Exiting.")
 
 
 def main():
@@ -319,9 +321,9 @@ def main():
     )
     parser.add_argument(
         "--root",
-        type=Path,
+        type=str,
         default=None,
-        help="Root directory for the dataset stored locally (e.g. `--root data`). By default, the dataset will be loaded from hugging face cache folder, or downloaded from the hub if available.",
+        help="Root directory for the dataset stored locally (e.g. `--root data`), or an object-store URI for storage formats that read in place (e.g. `--root s3://bucket/dataset`). Converting to Path would mangle URIs, so this stays a string. By default, the dataset will be loaded from hugging face cache folder, or downloaded from the hub if available.",
     )
     parser.add_argument(
         "--output-dir",
