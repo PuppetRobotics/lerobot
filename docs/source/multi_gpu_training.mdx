@@ -68,6 +68,14 @@ torchrun --nproc-per-node=2 $(which lerobot-train) \
 
 **LeRobot does not auto-scale the learning rate or the number of steps** when the effective batch size grows. If you scale out and want equivalent training, please adjust manually, e.g. with 2 GPUs: double `--optimizer.lr` (linear scaling), or halve `--steps`.
 
+### Slow checkpoints and the collective timeout
+
+Checkpoints are written (and optionally pushed to the Hub) by the main process only, while the other ranks wait at a barrier. If a save takes longer than torch's NCCL timeout (10 minutes by default), for example a multi-GB optimizer state written to a network filesystem, the watchdog kills the run with a `Watchdog caught collective operation timeout` error. Raise the timeout with:
+
+```bash
+--accelerator.process_group_timeout_s=3600
+```
+
 ## Sharded training (FSDP)
 
 If a model is too large to train with DDP, shard it with FSDP2:

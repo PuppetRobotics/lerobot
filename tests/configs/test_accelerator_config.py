@@ -48,6 +48,10 @@ class TestFieldValidation:
         with pytest.raises(ValueError, match="gradient_accumulation.steps"):
             GradientAccumulationConfig(steps=0)
 
+    def test_process_group_timeout_positive(self):
+        with pytest.raises(ValueError, match="process_group_timeout_s"):
+            AcceleratorConfig(process_group_timeout_s=0)
+
 
 class TestDraccusRoundTrip:
     @pytest.mark.parametrize(
@@ -68,6 +72,7 @@ class TestDraccusRoundTrip:
                 activation_checkpointing=ActivationCheckpointingConfig(mode=ActivationCheckpointingMode.FULL),
             ),
             AcceleratorConfig(fsdp=FSDPConfig(min_num_params=1_000_000)),
+            AcceleratorConfig(process_group_timeout_s=3600),
         ],
     )
     def test_encode_json_decode_identity(self, cfg):
@@ -133,3 +138,36 @@ class TestRuntimeBuilders:
         assert ga_plugin.num_steps == 4
         assert ga_plugin.sync_with_dataloader is False
         assert "gradient_accumulation_steps" not in captured
+
+    def _captured_build_kwargs(self, monkeypatch, cfg, world_size):
+        captured = {}
+
+        class FakeAccelerator:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+        monkeypatch.setattr("accelerate.Accelerator", FakeAccelerator)
+        parallelism = ParallelismConfig()
+        parallelism.resolve(world_size)
+        cfg.build(parallelism, cpu=True)
+        return captured
+
+    def test_process_group_timeout_translation(self):
+        from datetime import timedelta
+
+        handler = AcceleratorConfig(process_group_timeout_s=3600).build_process_group_kwargs()
+        assert handler.timeout == timedelta(seconds=3600)
+        assert AcceleratorConfig().build_process_group_kwargs() is None
+
+    def test_process_group_timeout_joins_ddp_handler(self, monkeypatch):
+        from accelerate.utils import DistributedDataParallelKwargs, InitProcessGroupKwargs
+
+        captured = self._captured_build_kwargs(
+            monkeypatch, AcceleratorConfig(process_group_timeout_s=3600), world_size=2
+        )
+        handler_types = {type(h) for h in captured["kwargs_handlers"]}
+        assert handler_types == {DistributedDataParallelKwargs, InitProcessGroupKwargs}
+
+    def test_no_process_group_handler_by_default(self, monkeypatch):
+        captured = self._captured_build_kwargs(monkeypatch, AcceleratorConfig(), world_size=1)
+        assert "kwargs_handlers" not in captured

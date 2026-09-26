@@ -22,6 +22,7 @@ never imports accelerate.
 """
 
 from dataclasses import dataclass, field
+from datetime import timedelta
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
         DistributedDataParallelKwargs,
         FullyShardedDataParallelPlugin,
         GradientAccumulationPlugin,
+        InitProcessGroupKwargs,
     )
 
 
@@ -194,9 +196,15 @@ class AcceleratorConfig:
     `MixedPrecisionPolicy` for sharded runs (accelerate derives it). Sharded runs support
     "no" and "bf16" only; fp16's GradScaler-over-DTensor path is unverified and fails fast
     at config validation.
+
+    `process_group_timeout_s` sets the collective timeout of the distributed process group.
+    Checkpoint writes and Hub pushes run on rank 0 only while every other rank waits in a
+    barrier, so a slow save (large optimizer state, network filesystem) can exceed torch's
+    10-minute NCCL default and have the watchdog kill the run. None keeps torch's default.
     """
 
     mixed_precision: str = "no"
+    process_group_timeout_s: int | None = None
     gradient_accumulation: GradientAccumulationConfig = field(default_factory=GradientAccumulationConfig)
     fsdp: FSDPConfig = field(default_factory=FSDPConfig)
     ddp: DDPConfig = field(default_factory=DDPConfig)
@@ -209,12 +217,28 @@ class AcceleratorConfig:
         """Validate the accelerate-facing scalar fields.
 
         Raises:
-            ValueError: If ``mixed_precision`` is not one of ``"no"``, ``"fp16"``, ``"bf16"``.
+            ValueError: If ``mixed_precision`` is not one of ``"no"``, ``"fp16"``, ``"bf16"``,
+                or ``process_group_timeout_s`` is not positive.
         """
         if self.mixed_precision not in ("no", "fp16", "bf16"):
             raise ValueError(
                 f"mixed_precision must be one of 'no', 'fp16', 'bf16', got {self.mixed_precision!r}."
             )
+        if self.process_group_timeout_s is not None and self.process_group_timeout_s <= 0:
+            raise ValueError(f"process_group_timeout_s must be > 0, got {self.process_group_timeout_s}.")
+
+    def build_process_group_kwargs(self) -> "InitProcessGroupKwargs | None":
+        """Build the process-group kwargs handler for `Accelerator(kwargs_handlers=[...])`.
+
+        Returns:
+            InitProcessGroupKwargs | None: Handler carrying the collective timeout, or None when
+                ``process_group_timeout_s`` is unset (torch's default applies).
+        """
+        if self.process_group_timeout_s is None:
+            return None
+        from accelerate.utils import InitProcessGroupKwargs
+
+        return InitProcessGroupKwargs(timeout=timedelta(seconds=self.process_group_timeout_s))
 
     def build(self, parallelism: ParallelismConfig, *, cpu: bool = False) -> "Accelerator":
         """Translate the mirrored fields into a ready `Accelerator` (call once per process).
@@ -241,11 +265,17 @@ class AcceleratorConfig:
             "mixed_precision": self.mixed_precision,
             "cpu": cpu,
         }
+        kwargs_handlers = []
         if parallelism.is_sharded:
             kwargs["fsdp_plugin"] = self.fsdp.build_plugin()
             kwargs["parallelism_config"] = _accelerate_parallelism_config(parallelism)
         elif parallelism.is_replicated_only:
-            kwargs["kwargs_handlers"] = [self.ddp.build_kwargs_handler()]
+            kwargs_handlers.append(self.ddp.build_kwargs_handler())
+        process_group_kwargs = self.build_process_group_kwargs()
+        if process_group_kwargs is not None:
+            kwargs_handlers.append(process_group_kwargs)
+        if kwargs_handlers:
+            kwargs["kwargs_handlers"] = kwargs_handlers
         return Accelerator(**kwargs)
 
 
