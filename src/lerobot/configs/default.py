@@ -105,6 +105,36 @@ class WandBConfig:
 
 
 @dataclass
+class SimHubConfig:
+    """Launch a SimHub simulation evaluation every time a checkpoint is written.
+
+    SimHub pulls the checkpoint from object storage, so the checkpoint directory must be reachable
+    by a remote URI. It is resolved as `<checkpoint_uri_prefix>/<path relative to output_dir>`, or,
+    when `checkpoint_uri_prefix` is unset and `output_dir` lives on a gcsfuse mount
+    (`/gcs/<bucket>/...`), as the matching `gs://<bucket>/...` URI.
+    """
+
+    enable: bool = False
+    # Name of the SimHub evaluation to launch (e.g. "puppet-golf-evaluation").
+    evaluation: str | None = None
+    # One launch per seed for every checkpoint.
+    seeds: list[int] = field(default_factory=lambda: [0])
+    # Remote URI mirroring `output_dir` (e.g. "gs://lerobot-training-bucket/lerobot_outputs/my-run").
+    checkpoint_uri_prefix: str | None = None
+    # Environment variables holding the SimHub API URL and key.
+    api_url_env: str = "SIMHUB_API_URL"
+    api_key_env: str = "SIMHUB_API_KEY"
+    # Prefix of the idempotency `request_id` of each launch. Defaults to the output_dir name.
+    run_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.enable and not self.evaluation:
+            raise ValueError("simhub.enable=true requires --simhub.evaluation.")
+        if self.enable and not self.seeds:
+            raise ValueError("simhub.seeds must contain at least one seed.")
+
+
+@dataclass
 class EvalConfig:
     n_episodes: int = 50
     # `batch_size` specifies the number of environments to use in a gym.vector.VectorEnv.

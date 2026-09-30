@@ -45,6 +45,7 @@ from termcolor import colored
 from torch.optim import Optimizer
 from tqdm import tqdm
 
+from lerobot.common.simhub_utils import SimHubLauncher
 from lerobot.common.train_utils import (
     get_step_checkpoint_dir,
     get_step_identifier,
@@ -426,6 +427,10 @@ def train(cfg: TrainPipelineConfig):
         wandb_logger = None
         if is_main_process():
             logging.info(colored("Logs will be saved locally.", "yellow", attrs=["bold"]))
+
+    simhub_launcher = (
+        SimHubLauncher(cfg.simhub, cfg.output_dir) if cfg.simhub.enable and is_main_process() else None
+    )
 
     if cfg.seed is not None:
         set_seed(cfg.seed, accelerator=accelerator)
@@ -851,6 +856,8 @@ def train(cfg: TrainPipelineConfig):
                     )
                 if wandb_logger:
                     wandb_logger.log_policy(checkpoint_dir)
+                if simhub_launcher:
+                    simhub_launcher.launch(checkpoint_dir)
             accelerator.wait_for_everyone()
 
         if cfg.env and is_env_eval_step:
@@ -913,6 +920,8 @@ def train(cfg: TrainPipelineConfig):
     if is_main_process():
         progbar.close()
         logging.info("End of training")
+        if simhub_launcher:
+            simhub_launcher.close()
 
     # --- publish (collective-safe: all ranks; the model commit gathers sharded weights) ---------
     if getattr(active_cfg, "push_to_hub", False):

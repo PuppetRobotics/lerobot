@@ -35,7 +35,15 @@ from lerobot.utils.hub import HubMixin, find_latest_hub_checkpoint
 from lerobot.utils.sample_weighting import SampleWeightingConfig
 
 from . import parser
-from .default import DatasetConfig, EMAConfig, EvalConfig, JobConfig, PeftConfig, WandBConfig
+from .default import (
+    DatasetConfig,
+    EMAConfig,
+    EvalConfig,
+    JobConfig,
+    PeftConfig,
+    SimHubConfig,
+    WandBConfig,
+)
 from .policies import PreTrainedConfig
 from .rewards import RewardModelConfig
 
@@ -174,6 +182,8 @@ class TrainPipelineConfig(HubMixin):
     # just the final model (useful to monitor progress mid-run). Optional; the
     # final model is pushed regardless. Works the same locally and remotely.
     save_checkpoint_to_hub: bool = False
+    # Launch a SimHub simulation evaluation on every saved checkpoint (see SimHubConfig).
+    simhub: SimHubConfig = field(default_factory=SimHubConfig)
 
     # Sample weighting configuration (e.g., for RA-BC training)
     sample_weighting: SampleWeightingConfig | None = None
@@ -330,6 +340,9 @@ class TrainPipelineConfig(HubMixin):
 
         if self.save_checkpoint_to_hub and not (self.policy is not None and self.policy.repo_id):
             raise ValueError("save_checkpoint_to_hub requires --policy.repo_id.")
+
+        if self.simhub.enable and not self.save_checkpoint:
+            raise ValueError("simhub.enable=true requires save_checkpoint=true.")
 
         self._validate_distributed()
 
