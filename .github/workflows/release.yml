@@ -28,7 +28,7 @@ jobs:
   # This job builds the Python package and publishes it to PyPI
   build-and-publish:
     name: Build and publish Python distributions
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.repository == 'huggingface/lerobot'
     outputs:
       version: ${{ steps.extract_info.outputs.tag_version }}
@@ -121,7 +121,7 @@ jobs:
   test-release:
     name: Test Release
     needs: [build-and-publish]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     env:
