@@ -26,7 +26,7 @@ permissions:
 jobs:
   label-issue:
     name: Auto Label Issue
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.repository == 'huggingface/lerobot'
     steps:
       - uses: actions/github-script@v9

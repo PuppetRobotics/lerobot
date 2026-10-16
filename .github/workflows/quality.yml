@@ -40,7 +40,7 @@ jobs:
   # This job runs pre-commit hooks to check code style and formatting.
   pre-commit-checks:
     name: Run Pre-commit Hooks (Lint, Format & Static Analysis)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -61,7 +61,7 @@ jobs:
   # See docs/source/writing_docstrings.mdx for the standard these enforce.
   doc-checks:
     name: Run Documentation Checks (Doctests)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       # Examples that need a physical robot, a serial port or a Hub download are skipped by content.
       # Everything else has to actually run. See src/lerobot/utils/doctest_utils.py.
