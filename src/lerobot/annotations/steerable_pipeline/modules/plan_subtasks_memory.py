@@ -28,7 +28,7 @@ from ..frames import (
     null_provider,
     to_contact_sheet_blocks,
 )
-from ..prompts import load as load_prompt
+from ..prompts import load as load_prompt, overridden_prompts, resolve_prompts_dir
 from ..reader import EpisodeRecord, reconstruct_subtask_spans, snap_to_frame
 from ..staging import EpisodeStaging
 from ..vlm_client import VlmClient
@@ -92,6 +92,19 @@ class PlanSubtasksMemoryModule:
     vlm: VlmClient
     config: PlanConfig
     frame_provider: FrameProvider = field(default_factory=null_provider)
+
+    def __post_init__(self) -> None:
+        overridden = overridden_prompts(self.config.prompts_dir)
+        if overridden:
+            logger.info(
+                "plan: prompts_dir=%s replaces %s; other prompts use the defaults",
+                resolve_prompts_dir(self.config.prompts_dir),
+                ", ".join(overridden),
+            )
+
+    def _prompt(self, name: str) -> str:
+        """Load template ``name``, honouring ``config.prompts_dir``."""
+        return load_prompt(name, self.config.prompts_dir)
 
     @property
     def enabled(self) -> bool:
@@ -271,14 +284,14 @@ class PlanSubtasksMemoryModule:
 
     def _derive_task_from_video(self, record: EpisodeRecord) -> str | None:
         """Ask the VLM "what is this video about" with no task hint at all."""
-        text = self._vlm_field(self._video_message(record, load_prompt("plan_video_task")), "task")
+        text = self._vlm_field(self._video_message(record, self._prompt("plan_video_task")), "task")
         return text.strip() if isinstance(text, str) and text.strip() else None
 
     def _generate_task_rephrasings(self, base_task: str, *, n: int) -> list[str]:
         """Generate ``n`` text-only paraphrases of ``base_task``."""
         if n <= 0 or not base_task:
             return []
-        prompt = load_prompt("plan_task_rephrasings").format(base_task=base_task, n=n)
+        prompt = self._prompt("plan_task_rephrasings").format(base_task=base_task, n=n)
         raw = self._vlm_field(self._text_message(prompt), "rephrasings")
         if not isinstance(raw, list):
             return []
@@ -301,7 +314,7 @@ class PlanSubtasksMemoryModule:
         """
         if not base_task:
             return []
-        prompt = load_prompt("plan_task_aug_axes").format(
+        prompt = self._prompt("plan_task_aug_axes").format(
             base_task=base_task,
             n_synonym=axes_cfg.synonym_paraphrase,
             n_omit_arm=axes_cfg.omit_arm,
@@ -490,7 +503,7 @@ class PlanSubtasksMemoryModule:
 
         # ---- Pass 2: segmentation ------------------------------------
         prompt = self._with_causal_rules(
-            load_prompt("plan_subtasks").format(
+            self._prompt("plan_subtasks").format(
                 episode_task=effective_task,
                 min_subtask_seconds=self.config.min_subtask_seconds,
                 max_steps=self.config.plan_max_steps,
@@ -530,7 +543,7 @@ class PlanSubtasksMemoryModule:
             content += self._segment_sheet(record, span)
             if i < n - 1:
                 content += self._segment_sheet(record, spans[i + 1])
-            prompt = load_prompt("plan_subtask_relabel").format(
+            prompt = self._prompt("plan_subtask_relabel").format(
                 episode_task=task,
                 seed_label=span["text"],
                 segment_index=i + 1,
@@ -617,7 +630,7 @@ class PlanSubtasksMemoryModule:
                 )
 
         prompt = self._with_causal_rules(
-            load_prompt("plan_subtasks").format(
+            self._prompt("plan_subtasks").format(
                 episode_task=task,
                 min_subtask_seconds=self.config.min_subtask_seconds,
                 max_steps=self.config.plan_max_steps,
@@ -722,7 +735,7 @@ class PlanSubtasksMemoryModule:
         self, record: EpisodeRecord, task: str, window: tuple[float, float] | None = None
     ) -> str:
         """Grounding pass: free-form chronological description of the (windowed) video."""
-        prompt = self._with_causal_rules(load_prompt("plan_subtask_describe").format(episode_task=task))
+        prompt = self._with_causal_rules(self._prompt("plan_subtask_describe").format(episode_task=task))
         text = self._vlm_field(self._video_message(record, prompt, window=window), "description")
         return text.strip() if isinstance(text, str) and text.strip() else ""
 
@@ -817,7 +830,7 @@ class PlanSubtasksMemoryModule:
         *,
         task: str | None = None,
     ) -> str:
-        prompt = load_prompt("plan_memory").format(
+        prompt = self._prompt("plan_memory").format(
             episode_task=(task if task is not None else record.episode_task),
             prior_memory=prior_memory or "(none)",
             completed_subtask=completed,

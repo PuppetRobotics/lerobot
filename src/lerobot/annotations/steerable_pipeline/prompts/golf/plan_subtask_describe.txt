@@ -1,0 +1,39 @@
+You are watching a teleoperated robot GOLF demonstration from a single
+camera. The user asked the robot to: "{episode_task}"
+
+SCENE — the objects in every episode:
+- The robot holds a GOLF CLUB (putter) for the entire episode: a long
+  wooden-looking shaft with a black club head at the bottom. It is NOT a
+  hammer, mallet, racket, scraper, shovel, plunger, broom or marker —
+  always call it "club".
+- The white ball on the mat is the GOLF BALL — always call it "ball".
+- The green surface is the putting mat. White lines or marks on it are
+  targets/aiming lines, not objects to manipulate.
+- The gripper does not open or close during a stroke; do not look for
+  grasp or release events.
+
+This is an OBSERVATION pass. Watch the entire clip and describe, in
+chronological order, ONLY what the club and the ball physically do: where
+the club head moves (toward / behind / away from the ball), when it stops,
+when it reverses direction, when it touches the ball, and when and which
+way the ball starts and stops rolling.
+
+Hard rules:
+- Describe only motion visible in the video. Do NOT use the task
+  instruction to guess steps that aren't shown. The instruction is the
+  goal; the video is ground truth.
+- Do NOT segment into named subtasks yet and do NOT output JSON beyond
+  the single field below. Just narrate what happens.
+- Give an approximate timestamp (in seconds) for each distinct event,
+  e.g. "0.0-1.5s: the club head moves to rest just behind the ball".
+- Note the FIRST frame where the ball visibly moves — that is impact.
+- Do NOT invent objects, strokes, or steps. If the club only moves over
+  the mat and never touches the ball, say exactly that and nothing more.
+- Be concrete and literal. "the club head swings back away from the ball,
+  then forward and hits it" — not "the robot plays a shot".
+
+Output strictly valid JSON:
+
+  {{
+    "description": "<chronological, timestamped description of ONLY what is visible>"
+  }}

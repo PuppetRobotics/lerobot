@@ -22,6 +22,8 @@ from typing import Any
 
 from lerobot.configs.default import JobConfig
 
+from .prompts import resolve_prompts_dir
+
 # The annotation pipeline boots its own vLLM server, so the pod starts from the
 # official vLLM runtime rather than the prebuilt `lerobot-gpu` training image;
 # `lerobot` is pip-installed on top (see `lerobot.jobs.annotate`).
@@ -107,6 +109,15 @@ class PlanConfig:
 
     # Optional EgoMimic-style 5-axis task augmentation; replaces n_task_rephrasings.
     task_aug_axes: TaskAugAxesConfig = field(default_factory=lambda: TaskAugAxesConfig())
+
+    # Prompt variant for this module: a directory path, or the name of a packaged
+    # variant under ``prompts/`` (e.g. "golf"). Templates in it replace the
+    # defaults of the same name; missing ones fall back to the defaults. None =
+    # defaults only. Validated at startup (see ``prompts.resolve_prompts_dir``).
+    prompts_dir: str | None = None
+
+    def __post_init__(self) -> None:
+        resolve_prompts_dir(self.prompts_dir)
 
 
 @dataclass
