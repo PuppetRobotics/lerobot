@@ -52,7 +52,7 @@ jobs:
   # It runs everytime a PR is approved or a push to main
   full-tests:
     name: Full Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: |
       (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') ||
       github.event_name == 'push' ||
@@ -203,7 +203,7 @@ jobs:
     name: Delete PR Image
     needs: [gpu-tests, build-and-push-docker]
     if: always() && ((github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')) && needs.build-and-push-docker.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Get Docker Hub Token and Delete Image
         # zizmor: ignore[template-injection]

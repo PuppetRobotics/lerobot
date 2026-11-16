@@ -62,7 +62,7 @@ jobs:
   # tests gated behind other extras skip automatically.
   fast-pytest-tests:
     name: Fast Pytest Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       MUJOCO_GL: egl
       HF_HOME: /mnt/cache/.cache/huggingface

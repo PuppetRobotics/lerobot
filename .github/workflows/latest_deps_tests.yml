@@ -41,7 +41,7 @@ jobs:
   # This job upgrades the lockfile and checks if dependencies have changed
   upgrade-lock:
     name: Upgrade Lockfile
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.repository == 'huggingface/lerobot'
     permissions:
       contents: read
@@ -84,7 +84,7 @@ jobs:
     name: CPU Tests (Latest Deps)
     needs: [upgrade-lock]
     if: needs.upgrade-lock.outputs.changed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     env:
@@ -221,7 +221,7 @@ jobs:
     name: Slack Notification
     needs: [cpu-tests, gpu-tests, upgrade-lock]
     if: always() && needs.upgrade-lock.outputs.changed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     env:
@@ -240,7 +240,7 @@ jobs:
     name: Open PR
     needs: [cpu-tests, gpu-tests, upgrade-lock]
     if: success() && needs.upgrade-lock.outputs.changed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       pull-requests: write
@@ -291,7 +291,7 @@ jobs:
     if: always() && needs.build-and-push-docker.result == 'success'
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Get Docker Hub Token and Delete Image
         # zizmor: ignore[template-injection]
