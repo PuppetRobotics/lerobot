@@ -1395,7 +1395,10 @@ class PI05Policy(PreTrainedPolicy):
             loss_per_dim = (losses * postfix_mask).sum(dim=(0, 1)) / postfix_mask.sum(dim=(0, 1)).clamp(min=1)
         loss_dict = {"loss_per_dim": loss_per_dim.detach().cpu().numpy().tolist()}
         loss_dict.update(
-            {f"loss_per_dim_{i}": loss_value.item() for i, loss_value in enumerate(loss_per_dim.detach().cpu())}
+            {
+                f"loss_per_dim_{i}": loss_value.item()
+                for i, loss_value in enumerate(loss_per_dim.detach().cpu())
+            }
         )
         loss_dict["loss_per_dim_avg"] = loss_per_dim.mean().item()
 
