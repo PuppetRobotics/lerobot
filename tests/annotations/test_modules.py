@@ -119,6 +119,52 @@ def test_module1_plan_memory_subtask_smoke(fixture_dataset_root: Path, tmp_path:
     assert len(plan_rows[-1]["content"].splitlines()) == 1
 
 
+def test_module1_prompts_dir_sends_variant_prompts_to_vlm(fixture_dataset_root: Path, tmp_path: Path) -> None:
+    """``prompts_dir="golf"`` swaps the describe + segment prompts, keeps the rest."""
+    replies = {
+        # Marker only present in prompts/golf/plan_subtasks.txt.
+        "golf stroke phases": {
+            "subtasks": [
+                {"text": "address ball", "start": 0.0, "end": 0.5},
+                {"text": "strike ball", "start": 0.5, "end": 1.1},
+            ]
+        },
+        # Marker only present in prompts/golf/plan_subtask_describe.txt.
+        "what the club and the ball physically do": {"description": "club hits ball"},
+        # Default plan_memory.txt is still used.
+        "compressed semantic memory": {"memory": "struck the ball"},
+    }
+    seen: list[str] = []
+
+    def responder(messages: list[dict[str, Any]]) -> Any:
+        texts = [
+            block["text"]
+            for message in messages
+            if isinstance(message.get("content"), list)
+            for block in message["content"]
+            if isinstance(block, dict) and block.get("type") == "text"
+        ]
+        seen.extend(texts)
+        for marker, reply in replies.items():
+            if any(marker in text for text in texts):
+                return reply
+        return None
+
+    module = PlanSubtasksMemoryModule(
+        vlm=StubVlmClient(responder=responder),
+        config=PlanConfig(prompts_dir="golf", n_task_rephrasings=0, derive_task_from_video="off"),
+    )
+    record = next(iter_episodes(fixture_dataset_root))
+    staging = EpisodeStaging(tmp_path / "stage", record.episode_index)
+    module.run_episode(record, staging)
+    rows = staging.read("plan")
+
+    assert [r["content"] for r in rows if r["style"] == "subtask"] == ["address ball", "strike ball"]
+    assert any(r["style"] == "memory" and r["content"] == "struck the ball" for r in rows)
+    assert not any("COMPLETED manipulation events" in text for text in seen)  # default segment prompt
+    assert any("club hits ball" in text for text in seen)  # golf describe output reaches segment pass
+
+
 def test_module1_emit_memory_false_skips_memory_keeps_subtasks_and_plan(
     fixture_dataset_root: Path, tmp_path: Path
 ) -> None:

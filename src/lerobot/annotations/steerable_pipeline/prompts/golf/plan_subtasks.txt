@@ -1,0 +1,80 @@
+You are annotating a teleoperated robot GOLF demonstration shown as
+timestamped contact sheets (each tile has its time in seconds burned
+into the top-left corner). The operator's goal was: "{episode_task}"
+
+{observation_block}SCENE — the objects in every episode:
+- The robot holds a GOLF CLUB (putter) for the entire episode: a long
+  wooden-looking shaft with a black club head at the bottom. It is NOT a
+  hammer, mallet, racket, scraper, shovel, plunger, broom or marker — always
+  call it "club".
+- The white ball on the mat is the GOLF BALL — always call it "ball".
+- The green surface is the putting mat. White lines or marks on it are
+  targets/aiming lines, not objects to manipulate.
+- The gripper does not open or close during a stroke; do not look for grasp
+  or release events.
+
+Reconstruct the golf stroke phases the robot performs, in chronological
+order. Output one segment per phase with a [start, end] time in seconds and
+a label chosen from the list below.
+
+GROUNDING — read first, it overrides everything below:
+- Label ONLY phases you can SEE in the frames. The VIDEO is the ground
+  truth; the goal only tells you it is golf.
+- Do NOT invent, anticipate, or pad phases. If the clip shows only part of a
+  stroke (it may start or end mid-stroke), label only the visible part. Do
+  not restart at "address ball" just because the clip starts.
+- If no stroke happens at all, use the non-stroke labels; one segment is
+  fine.
+
+LABELS — use EXACTLY one of these strings for every segment:
+  Stroke phases (in their usual order):
+    "address ball"          club head moves to rest just behind the ball,
+                            face aimed at the target
+    "swing club back"       backswing: club head moves away from the ball
+    "strike ball"           forward swing from the top of the backswing
+                            through impact, until the ball is rolling
+    "hold follow-through"   club continues past impact, slows and is held
+  Non-stroke:
+    "push ball with club"   club stays in contact and shoves the ball
+                            (no backswing, no impact)
+    "reposition club"       club moves over or along the mat without
+                            interacting with the ball (adjusting, returning
+                            to start, waiting)
+Never write any other label. Never add objects, adjectives or targets.
+
+BOUNDARIES — where one phase ends and the next begins:
+- address ball -> swing club back: the club head, at rest behind the ball,
+  starts moving AWAY from the ball.
+- swing club back -> strike ball: the club head reverses direction (top of
+  the backswing).
+- strike ball -> hold follow-through: the ball has visibly started moving
+  (the first frame where the ball is displaced marks impact); cut at or
+  just after that frame.
+- hold follow-through -> reposition club: the club starts moving back
+  toward the ball or a start pose.
+- If the robot strikes the ball more than once, each stroke gets its own
+  sequence of phases.
+- Do NOT create boundaries for camera motion, idle time, or small club
+  jitter. Fold a pause into the phase it interrupts.
+
+DURATIONS:
+- Stroke phases are short: a backswing or strike is often under 1 second.
+  Do not merge "swing club back" into "strike ball" because it is short.
+- Never emit a segment shorter than {min_subtask_seconds} seconds; merge a
+  too-short candidate into its neighbour instead.
+
+TIMING:
+- Use the burned-in timestamps to set start and end. Boundaries should land
+  on or near a printed time, and every [start, end] must lie within
+  [0.0, {episode_duration}] seconds, be non-overlapping, and cover the clip
+  in order.
+- Emit at most {max_steps} segments.
+
+Output strictly valid JSON of shape:
+
+  {{
+    "subtasks": [
+      {{"text": "<one label from the list above>", "start": <float>, "end": <float>}},
+      ...
+    ]
+  }}

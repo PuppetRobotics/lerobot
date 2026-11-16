@@ -229,6 +229,7 @@ Every module is on by default and can be toggled independently (set to
 | `--plan.emit_memory`            | `true`     | Emit the `memory` rows (`false` = subtasks + plan only); symmetric to `emit_plan`.                                           |
 | `--plan.n_task_rephrasings`     | `10`       | How many `task_aug` rephrasings to emit (`0` disables).                                                                      |
 | `--plan.derive_task_from_video` | `if_short` | Use the dataset task as-is (`off`), only when it's missing/short (`if_short`), or always re-derive from video (`always`).    |
+| `--plan.prompts_dir`            | `null`     | Prompt variant: a directory, or a packaged variant name under `prompts/` (e.g. `golf`). Its templates replace the defaults.  |
 
 ### Interjections + VQA
 
